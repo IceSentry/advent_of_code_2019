@@ -127,8 +127,14 @@ fn manhattan_dist(p: Point, q: Point) -> i32 {
 }
 
 fn day_3() {
-    let input = fs::read_to_string("src/2/input.txt").expect("Unable to open input.txt");
+    let input = fs::read_to_string("src/3/input.txt").expect("Unable to open input.txt");
     let input = input.split('\n');
 
-    println!("{}", manhattan_dist(Point(1, 1), Point(3, 3)))
+    let dist = manhattan_dist(Point(1, 1), Point(3, 3));
+
+    let temp = 4;
+
+    if temp == dist {
+        println!("{}", dist);
+    }
 }
