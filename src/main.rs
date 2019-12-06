@@ -1,9 +1,11 @@
+#![allow(dead_code)]
+
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 
 fn main() {
-    day_2_part_2();
+    day_3();
 }
 
 fn day_1() {
@@ -55,7 +57,7 @@ fn day_2() {
     let mut output = File::create("src/2/output.txt").expect("Unable to create output.txt");
 
     let mut input: Vec<usize> = input
-        .split(",")
+        .split(',')
         .map(|x| x.parse::<usize>().unwrap())
         .collect();
 
@@ -76,13 +78,13 @@ fn day_2() {
     write!(output, "{}", input[0]).expect("Unable to write result");
 }
 
-fn find_pair(input: &Vec<usize>, target_value: usize) -> (usize, usize) {
+fn find_pair(input: &[usize], target_value: usize) -> (usize, usize) {
     let mut noun = 0;
     let mut verb = 0;
 
     loop {
         loop {
-            let mut input_copy = input.clone();
+            let mut input_copy = input.to_owned();
 
             input_copy[1] = noun;
             input_copy[2] = verb;
@@ -107,13 +109,26 @@ fn day_2_part_2() {
     let mut output = File::create("src/2/output.txt").expect("Unable to create output.txt");
 
     let input: Vec<usize> = input
-        .split(",")
+        .split(',')
         .map(|x| x.parse::<usize>().unwrap())
         .collect();
 
-    let (noun, verb) = find_pair(&input, 19690720);
+    let (noun, verb) = find_pair(&input, 19_690_720);
 
     let result = 100 * noun + verb;
 
     write!(output, "{}", result).expect("Unable to write result");
+}
+
+struct Point(i32, i32);
+
+fn manhattan_dist(p: Point, q: Point) -> i32 {
+    (p.0 - q.0).abs() + (p.1 - q.1).abs()
+}
+
+fn day_3() {
+    let input = fs::read_to_string("src/2/input.txt").expect("Unable to open input.txt");
+    let input = input.split('\n');
+
+    println!("{}", manhattan_dist(Point(1, 1), Point(3, 3)))
 }
