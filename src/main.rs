@@ -120,17 +120,23 @@ fn day_2_part_2() {
     write!(output, "{}", result).expect("Unable to write result");
 }
 
-struct Point(i32, i32);
+struct Point {
+    x: i32,
+    y: i32,
+}
 
 fn manhattan_dist(p: Point, q: Point) -> i32 {
-    (p.0 - q.0).abs() + (p.1 - q.1).abs()
+    (p.x - q.x).abs() + (p.y - q.y).abs()
 }
 
 fn day_3() {
     let input = fs::read_to_string("src/3/input.txt").expect("Unable to open input.txt");
-    let input = input.split('\n');
+    let input: Vec<&str> = input.split('\n').collect();
 
-    let dist = manhattan_dist(Point(1, 1), Point(3, 3));
+    let cable1 = input[0];
+    let cable2 = input[1];
+
+    let dist = manhattan_dist(Point { x: 1, y: 1 }, Point { x: 3, y: 3 });
 
     let temp = 4;
 
