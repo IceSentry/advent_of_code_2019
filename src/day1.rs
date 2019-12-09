@@ -7,7 +7,7 @@ pub fn part1(input: &str) -> i32 {
   let mut total = 0;
 
   for line in input.lines() {
-    let mass = line.parse::<i32>().unwrap();
+    let mass: i32 = line.parse().unwrap();
     total += fuel_needed(mass);
   }
 
@@ -16,12 +16,10 @@ pub fn part1(input: &str) -> i32 {
 
 #[aoc(day1, part1, map)]
 pub fn part1_map(input: &str) -> i32 {
-  let total = input.lines().fold(0, |acc, line| {
+  input.lines().fold(0, |acc, line| {
     let mass = line.parse::<i32>().unwrap();
     acc + fuel_needed(mass)
-  });
-
-  total
+  })
 }
 
 #[aoc(day1, part2)]

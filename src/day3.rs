@@ -9,7 +9,7 @@ fn parse_wire(wire_string: &str) -> Vec<Point> {
   let mut x = 0;
   let mut y = 0;
 
-  for s in wire_string.split(",") {
+  for s in wire_string.split(',') {
     let mut chars = s.chars();
     let dir = chars.next();
 
@@ -45,7 +45,7 @@ fn manhattan_dist(p: Point, q: &Point) -> i32 {
   (p.0 - q.0).abs() + (p.1 - q.1).abs()
 }
 
-fn calculate_steps(wire: &Vec<Point>, intersect: &Point) -> i32 {
+fn calculate_steps(wire: &[Point], intersect: &Point) -> i32 {
   let mut steps = 0;
 
   for p in wire.iter() {
