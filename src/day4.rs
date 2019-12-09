@@ -1,8 +1,4 @@
-// - It is a six-digit number.
-// - The value is within the range given in your puzzle input.
-// - Two adjacent digits are the same (like 22 in 122345).
-// - Going from left to right, the digits never decrease;
-//   they only ever increase or stay the same (like 111123 or 135679).
+use std::collections::HashMap;
 
 fn validate_password_part1(pw: &str) -> bool {
   if pw.len() > 6 || pw.len() < 6 {
@@ -12,9 +8,9 @@ fn validate_password_part1(pw: &str) -> bool {
 
   let mut last_c = 0;
   let mut has_adj = false;
-  for c in chars {
-    let c: i32 = c.to_string().parse().unwrap();
+  let chars = chars.map(|c| c.to_string().parse().unwrap());
 
+  for c in chars {
     if c < last_c {
       return false;
     }
@@ -30,67 +26,63 @@ fn validate_password_part1(pw: &str) -> bool {
 }
 
 fn validate_password_part2(pw: &str) -> bool {
-  if pw.len() > 6 || pw.len() < 6 {
-    return false;
-  }
   let chars = pw.chars();
 
   let mut last_c = 0;
-  let mut has_adj = false;
+  let mut adj: HashMap<i32, i32> = HashMap::new();
+
   for c in chars {
     let c: i32 = c.to_string().parse().unwrap();
 
-    if c < last_c {
-      return false;
-    }
-
     if c == last_c {
-      has_adj = true
+      adj.insert(
+        c,
+        match adj.get(&c) {
+          Some(val) => val + 1,
+          None => 1,
+        },
+      );
     }
 
     last_c = c;
   }
 
-  has_adj
+  adj.values().any(|val| *val == 1)
+}
+
+#[aoc_generator(day4)]
+fn generator_input(input: &str) -> (i32, i32) {
+  let input: Vec<i32> = input
+    .split('-')
+    .map(|i| i.parse())
+    .filter_map(Result::ok)
+    .collect();
+
+  (input[0], input[1])
 }
 
 #[aoc(day4, part1)]
-pub fn part1(input: &str) -> i32 {
-  let input: Vec<i32> = input
-    .split('-')
-    .map(|i| i.parse::<i32>())
-    .filter_map(Result::ok)
-    .collect();
-
-  let mut count = 0;
-  for i in input[0]..input[1] {
-    if validate_password_part1(&i.to_string()) {
-      count += 1;
-    }
-  }
-  count
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn part1((min, max): &(i32, i32)) -> usize {
+  (*min..*max)
+    .map(|x| format!("{}", x))
+    .filter(|x| validate_password_part1(x))
+    .count()
 }
 
 #[aoc(day4, part2)]
-pub fn part2(input: &str) -> i32 {
-  let input: Vec<i32> = input
-    .split('-')
-    .map(|i| i.parse::<i32>())
-    .filter_map(Result::ok)
-    .collect();
-
-  let mut count = 0;
-  for i in input[0]..input[1] {
-    if validate_password_part2(&i.to_string()) {
-      count += 1;
-    }
-  }
-  count
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn part2((min, max): &(i32, i32)) -> usize {
+  (*min..*max)
+    .map(|x| format!("{}", x))
+    .filter(|x| validate_password_part1(x))
+    .filter(|x| validate_password_part2(x))
+    .count()
 }
 
 #[cfg(test)]
 mod tests {
-  use super::{validate_password_part1, validate_password_part2};
+  use super::*;
 
   #[test]
   fn test_day4_part1() {
@@ -102,9 +94,17 @@ mod tests {
 
   #[test]
   fn test_day4_part2() {
-    assert!(validate_password_part2(&String::from("111111")));
-    assert!(validate_password_part2(&String::from("223456")));
-    assert!(!validate_password_part2(&String::from("223450")));
-    assert!(!validate_password_part2(&String::from("123789")));
+    assert!(
+      validate_password_part2(&String::from("112233")),
+      "digits never decrease and are repeated at 2 digits"
+    );
+    assert!(
+      !validate_password_part2(&String::from("123444")),
+      "no repeated digits"
+    );
+    assert!(
+      validate_password_part2(&String::from("111122")),
+      "at least one pair of digits"
+    );
   }
 }
