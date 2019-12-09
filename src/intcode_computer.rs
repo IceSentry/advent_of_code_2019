@@ -16,14 +16,6 @@ impl ParamMode {
   }
 }
 
-fn parse_instruction(instruction: i32) -> (i32, ParamMode, ParamMode, ParamMode) {
-  let opcode = instruction % 100;
-  let a = ParamMode::from((instruction / 100) % 10);
-  let b = ParamMode::from((instruction / 1000) % 10);
-  let c = ParamMode::from((instruction / 10000) % 10);
-  (opcode, a, b, c)
-}
-
 enum Instruction {
   Add(i32, i32, i32),
   Multiply(i32, i32, i32),
@@ -34,6 +26,16 @@ enum Instruction {
   JmpLessThan(i32, i32, i32),
   JmpEquals(i32, i32, i32),
   Halt,
+}
+
+impl Instruction {
+  fn from(instruction: i32) -> (i32, ParamMode, ParamMode, ParamMode) {
+    let opcode = instruction % 100;
+    let a = ParamMode::from((instruction / 100) % 10);
+    let b = ParamMode::from((instruction / 1000) % 10);
+    let c = ParamMode::from((instruction / 10000) % 10);
+    (opcode, a, b, c)
+  }
 }
 
 enum State {
@@ -113,8 +115,7 @@ impl CPU {
   }
 
   fn execute(&mut self, instruction: i32) -> State {
-    let instruction = parse_instruction(instruction);
-    match self.decode(instruction) {
+    match self.decode(Instruction::from(instruction)) {
       Instruction::Add(a, b, c) => {
         self.set(c, a + b);
       }
@@ -181,7 +182,6 @@ pub fn parse_input(input: &str) -> Vec<i32> {
 
 pub fn parse_code(input: &[i32]) -> Vec<i32> {
   let mut cpu = CPU::new(input.to_owned(), None);
-
   cpu.run();
 
   cpu.memory
@@ -189,7 +189,8 @@ pub fn parse_code(input: &[i32]) -> Vec<i32> {
 
 #[cfg(test)]
 mod tests {
-  use crate::intcode_computer::{parse_code, parse_instruction, ParamMode, CPU};
+  use super::*;
+
   #[test]
   fn test_parse_code_day2() {
     let input = vec![1, 0, 0, 0, 99];
@@ -215,19 +216,19 @@ mod tests {
 
   #[test]
   fn test_parse_instruction() {
-    let (opcode, p1, p2, p3) = parse_instruction(1002);
+    let (opcode, p1, p2, p3) = Instruction::from(1002);
     assert_eq!(opcode, 2);
     assert_eq!(p1, ParamMode::Position);
     assert_eq!(p2, ParamMode::Immediate);
     assert_eq!(p3, ParamMode::Position);
 
-    let (opcode, p1, p2, p3) = parse_instruction(2);
+    let (opcode, p1, p2, p3) = Instruction::from(2);
     assert_eq!(opcode, 2);
     assert_eq!(p1, ParamMode::Position);
     assert_eq!(p2, ParamMode::Position);
     assert_eq!(p3, ParamMode::Position);
 
-    let (opcode, p1, p2, p3) = parse_instruction(104);
+    let (opcode, p1, p2, p3) = Instruction::from(104);
     assert_eq!(opcode, 4);
     assert_eq!(p1, ParamMode::Immediate);
     assert_eq!(p2, ParamMode::Position);
