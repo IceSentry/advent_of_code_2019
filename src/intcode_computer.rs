@@ -1,5 +1,7 @@
 use std::io;
 
+pub type SIZE = i128;
+
 #[derive(PartialEq, Debug)]
 enum ParamMode {
   Immediate,
@@ -7,7 +9,7 @@ enum ParamMode {
 }
 
 impl ParamMode {
-  fn from(param: i32) -> Self {
+  fn from(param: SIZE) -> Self {
     match param {
       0 => ParamMode::Position,
       1 => ParamMode::Immediate,
@@ -17,19 +19,19 @@ impl ParamMode {
 }
 
 enum Instruction {
-  Add(i32, i32, i32),
-  Multiply(i32, i32, i32),
-  Input(i32),
-  Output(i32),
-  JmpTrue(i32, i32),
-  JmpFalse(i32, i32),
-  JmpLessThan(i32, i32, i32),
-  JmpEquals(i32, i32, i32),
+  Add(SIZE, SIZE, SIZE),
+  Multiply(SIZE, SIZE, SIZE),
+  Input(SIZE),
+  Output(SIZE),
+  JmpTrue(SIZE, SIZE),
+  JmpFalse(SIZE, SIZE),
+  JmpLessThan(SIZE, SIZE, SIZE),
+  JmpEquals(SIZE, SIZE, SIZE),
   Halt,
 }
 
 impl Instruction {
-  fn from(instruction: i32) -> (i32, ParamMode, ParamMode, ParamMode) {
+  fn from(instruction: SIZE) -> (SIZE, ParamMode, ParamMode, ParamMode) {
     let opcode = instruction % 100;
     let a = ParamMode::from((instruction / 100) % 10);
     let b = ParamMode::from((instruction / 1000) % 10);
@@ -41,17 +43,18 @@ impl Instruction {
 enum State {
   Running,
   Halted,
+  RequireInput,
 }
 
 pub struct CPU {
-  instruction_pointer: i32,
-  memory: Vec<i32>,
-  input: Option<i32>,
-  pub output: Vec<i32>,
+  instruction_pointer: SIZE,
+  memory: Vec<SIZE>,
+  input: Option<SIZE>,
+  pub output: Vec<SIZE>,
 }
 
 impl CPU {
-  pub fn new(memory: Vec<i32>, input: Option<i32>) -> Self {
+  pub fn new(memory: Vec<SIZE>, input: Option<SIZE>) -> Self {
     CPU {
       instruction_pointer: 0,
       memory,
@@ -60,17 +63,17 @@ impl CPU {
     }
   }
 
-  fn fetch(&mut self) -> i32 {
+  fn fetch(&mut self) -> SIZE {
     let instruction = self.get(self.instruction_pointer);
     self.instruction_pointer += 1;
     instruction
   }
 
-  fn get(&self, addr: i32) -> i32 {
+  fn get(&self, addr: SIZE) -> SIZE {
     self.memory[addr as usize]
   }
 
-  fn get_param_value(&mut self, mode: ParamMode) -> i32 {
+  fn get_param(&mut self, mode: ParamMode) -> SIZE {
     let val = self.fetch();
 
     match mode {
@@ -79,42 +82,53 @@ impl CPU {
     }
   }
 
-  fn set(&mut self, addr: i32, val: i32) {
+  fn get_write_param(&mut self, mode: ParamMode) -> SIZE {
+    let val = self.fetch();
+
+    match mode {
+      ParamMode::Position => val,
+      ParamMode::Immediate => {
+        panic!("Parameters that an instruction writes to will never be in immediate mode")
+      }
+    }
+  }
+
+  fn set(&mut self, addr: SIZE, val: SIZE) {
     self.memory[addr as usize] = val;
   }
 
-  fn decode(&mut self, (opcode, a, b, _c): (i32, ParamMode, ParamMode, ParamMode)) -> Instruction {
+  fn decode(&mut self, (opcode, a, b, c): (SIZE, ParamMode, ParamMode, ParamMode)) -> Instruction {
     match opcode {
       1 => Instruction::Add(
-        self.get_param_value(a),
-        self.get_param_value(b),
-        self.fetch(),
+        self.get_param(a),
+        self.get_param(b),
+        self.get_write_param(c),
       ),
       2 => Instruction::Multiply(
-        self.get_param_value(a),
-        self.get_param_value(b),
-        self.fetch(),
+        self.get_param(a),
+        self.get_param(b),
+        self.get_write_param(c),
       ),
-      3 => Instruction::Input(self.fetch()),
-      4 => Instruction::Output(self.get_param_value(a)),
-      5 => Instruction::JmpTrue(self.get_param_value(a), self.get_param_value(b)),
-      6 => Instruction::JmpFalse(self.get_param_value(a), self.get_param_value(b)),
+      3 => Instruction::Input(self.get_write_param(a)),
+      4 => Instruction::Output(self.get_param(a)),
+      5 => Instruction::JmpTrue(self.get_param(a), self.get_param(b)),
+      6 => Instruction::JmpFalse(self.get_param(a), self.get_param(b)),
       7 => Instruction::JmpLessThan(
-        self.get_param_value(a),
-        self.get_param_value(b),
-        self.fetch(),
+        self.get_param(a),
+        self.get_param(b),
+        self.get_write_param(c),
       ),
       8 => Instruction::JmpEquals(
-        self.get_param_value(a),
-        self.get_param_value(b),
-        self.fetch(),
+        self.get_param(a),
+        self.get_param(b),
+        self.get_write_param(c),
       ),
       99 => Instruction::Halt,
       _ => panic!("Unknown opcode"),
     }
   }
 
-  fn execute(&mut self, instruction: i32) -> State {
+  fn execute(&mut self, instruction: SIZE) -> State {
     match self.decode(Instruction::from(instruction)) {
       Instruction::Add(a, b, c) => {
         self.set(c, a + b);
@@ -123,22 +137,10 @@ impl CPU {
         self.set(c, a * b);
       }
       Instruction::Input(a) => {
-        let value = match self.input {
-          Some(value) => value,
-          None => {
-            println!("Enter input:");
-            let mut input = String::new();
-            io::stdin()
-              .read_line(&mut input)
-              .expect("Failed to read line");
-            match input.parse() {
-              Ok(value) => value,
-              Err(_) => return State::Halted,
-            }
-          }
+        match self.input {
+          Some(value) => self.set(a, value),
+          None => return State::RequireInput,
         };
-
-        self.set(a, value)
       }
       Instruction::Output(a) => {
         println!("output: {}", a);
@@ -171,16 +173,27 @@ impl CPU {
       match self.step() {
         State::Halted => break,
         State::Running => (),
+        State::RequireInput => {
+          println!("Enter input:");
+          let mut input = String::new();
+          io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
+          self.input = match input.parse() {
+            Ok(value) => Some(value),
+            Err(_) => break,
+          }
+        }
       }
     }
   }
 }
 
-pub fn parse_input(input: &str) -> Vec<i32> {
+pub fn parse_input(input: &str) -> Vec<SIZE> {
   input.split(',').map(|x| x.parse().unwrap()).collect()
 }
 
-pub fn parse_code(input: &[i32]) -> Vec<i32> {
+pub fn parse_code(input: &[SIZE]) -> Vec<SIZE> {
   let mut cpu = CPU::new(input.to_owned(), None);
   cpu.run();
 
@@ -235,7 +248,7 @@ mod tests {
     assert_eq!(p3, ParamMode::Position);
   }
 
-  fn test_cpu(code: Vec<i32>, input: i32, expected_output: i32) -> bool {
+  fn test_cpu(code: Vec<SIZE>, input: SIZE, expected_output: SIZE) -> bool {
     let mut cpu = CPU::new(code, Some(input));
 
     cpu.run();
