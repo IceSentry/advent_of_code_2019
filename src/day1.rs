@@ -16,10 +16,10 @@ pub fn part1(input: &str) -> i32 {
 
 #[aoc(day1, part1, map)]
 pub fn part1_map(input: &str) -> i32 {
-  input.lines().fold(0, |acc, line| {
-    let mass = line.parse::<i32>().unwrap();
-    acc + fuel_needed(mass)
-  })
+  input
+    .lines()
+    .map(|mass| mass.parse().unwrap())
+    .fold(0, |acc, mass| acc + fuel_needed(mass))
 }
 
 #[aoc(day1, part2)]
@@ -40,6 +40,23 @@ pub fn part2(input: &str) -> i32 {
   }
 
   total
+}
+
+#[aoc(day1, part2, map)]
+pub fn part2_map(input: &str) -> i32 {
+  input
+    .lines()
+    .map(|mass| mass.parse().unwrap())
+    .fold(0, |acc, mass| {
+      let mut fuel = fuel_needed(mass);
+
+      let mut result = fuel_needed(fuel);
+      while result > 0 {
+        fuel += result;
+        result = fuel_needed(result);
+      }
+      acc + fuel
+    })
 }
 
 #[cfg(test)]
