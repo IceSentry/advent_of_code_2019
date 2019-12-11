@@ -1,5 +1,4 @@
 use std::collections::VecDeque;
-use std::io;
 
 pub type SIZE = i128;
 
@@ -41,16 +40,18 @@ impl Instruction {
   }
 }
 
-enum State {
+#[derive(PartialEq)]
+pub enum State {
   Running,
-  Halted,
-  RequireInput,
+  Halt,
+  Input,
+  Output,
 }
 
 pub struct CPU {
   instruction_pointer: SIZE,
   memory: Vec<SIZE>,
-  input: VecDeque<SIZE>,
+  pub input: VecDeque<SIZE>,
   pub output: Vec<SIZE>,
   allow_print: bool,
 }
@@ -126,7 +127,7 @@ impl CPU {
       Instruction::Input(a) => {
         match self.input.pop_front() {
           Some(value) => self.set(a, value),
-          None => return State::RequireInput,
+          None => return State::Input,
         };
       }
       Instruction::Output(a) => {
@@ -134,6 +135,7 @@ impl CPU {
           println!("output: {}", a);
         }
         self.output.push(a);
+        return State::Output;
       }
       Instruction::JmpTrue(a, b) => {
         if a != 0 {
@@ -147,7 +149,7 @@ impl CPU {
       }
       Instruction::JmpLessThan(a, b, c) => self.set(c, if a < b { 1 } else { 0 }),
       Instruction::JmpEquals(a, b, c) => self.set(c, if a == b { 1 } else { 0 }),
-      Instruction::Halt => return State::Halted,
+      Instruction::Halt => return State::Halt,
     }
     State::Running
   }
@@ -157,32 +159,18 @@ impl CPU {
     self.execute(instruction)
   }
 
-  pub fn run(&mut self, input: Option<&[SIZE]>) -> Vec<SIZE> {
+  pub fn run(&mut self, input: Option<SIZE>) -> State {
     if let Some(value) = input {
-      for val in value.iter() {
-        self.input.push_back(*val);
-      }
+      self.input.push_back(value);
     }
 
     loop {
-      match self.step() {
-        State::Halted => break,
+      let state = self.step();
+      match state {
         State::Running => (),
-        State::RequireInput => {
-          println!("Enter input:");
-          let mut input = String::new();
-          io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read line");
-          match input.parse() {
-            Ok(value) => self.input.push_back(value),
-            Err(_) => break,
-          }
-        }
+        _ => return state,
       }
     }
-
-    self.output.clone()
   }
 }
 
@@ -247,9 +235,9 @@ mod tests {
 
   fn test_cpu(code: Vec<SIZE>, input: SIZE, expected_output: SIZE) -> bool {
     let mut cpu = CPU::new(code);
-    let output = cpu.run(Some(&[input]));
+    cpu.run(Some(input));
 
-    *output.last().unwrap() == expected_output
+    *cpu.output.last().unwrap() == expected_output
   }
 
   #[test]
