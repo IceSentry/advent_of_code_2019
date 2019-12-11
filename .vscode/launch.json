@@ -8,13 +8,13 @@
       "name": "(Windows) Launch",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/target/debug/advent-of-code-2019.exe",
+      "program": "${workspaceFolder}/target/aoc/aoc-autobuild/target/release/aoc-autobuild.exe",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
       "environment": [],
-      "externalConsole": false,
-      "preLaunchTask": "build"
+      "externalConsole": false
+      // "preLaunchTask": "build"
     }
   ]
 }
