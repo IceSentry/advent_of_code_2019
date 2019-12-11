@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::io;
 
 pub type SIZE = i128;
@@ -49,17 +50,19 @@ enum State {
 pub struct CPU {
   instruction_pointer: SIZE,
   memory: Vec<SIZE>,
-  input: Option<SIZE>,
+  input: VecDeque<SIZE>,
   pub output: Vec<SIZE>,
+  allow_print: bool,
 }
 
 impl CPU {
-  pub fn new(memory: Vec<SIZE>, input: Option<SIZE>) -> Self {
+  pub fn new(memory: Vec<SIZE>) -> Self {
     CPU {
       instruction_pointer: 0,
       memory,
-      input,
+      input: VecDeque::new(),
       output: Vec::new(),
+      allow_print: cfg!(test),
     }
   }
 
@@ -73,7 +76,7 @@ impl CPU {
     self.memory[addr as usize]
   }
 
-  fn get_param(&mut self, mode: ParamMode) -> SIZE {
+  fn read(&mut self, mode: ParamMode) -> SIZE {
     let val = self.fetch();
 
     match mode {
@@ -82,7 +85,7 @@ impl CPU {
     }
   }
 
-  fn get_write_param(&mut self, mode: ParamMode) -> SIZE {
+  fn write(&mut self, mode: ParamMode) -> SIZE {
     let val = self.fetch();
 
     match mode {
@@ -99,30 +102,14 @@ impl CPU {
 
   fn decode(&mut self, (opcode, a, b, c): (SIZE, ParamMode, ParamMode, ParamMode)) -> Instruction {
     match opcode {
-      1 => Instruction::Add(
-        self.get_param(a),
-        self.get_param(b),
-        self.get_write_param(c),
-      ),
-      2 => Instruction::Multiply(
-        self.get_param(a),
-        self.get_param(b),
-        self.get_write_param(c),
-      ),
-      3 => Instruction::Input(self.get_write_param(a)),
-      4 => Instruction::Output(self.get_param(a)),
-      5 => Instruction::JmpTrue(self.get_param(a), self.get_param(b)),
-      6 => Instruction::JmpFalse(self.get_param(a), self.get_param(b)),
-      7 => Instruction::JmpLessThan(
-        self.get_param(a),
-        self.get_param(b),
-        self.get_write_param(c),
-      ),
-      8 => Instruction::JmpEquals(
-        self.get_param(a),
-        self.get_param(b),
-        self.get_write_param(c),
-      ),
+      1 => Instruction::Add(self.read(a), self.read(b), self.write(c)),
+      2 => Instruction::Multiply(self.read(a), self.read(b), self.write(c)),
+      3 => Instruction::Input(self.write(a)),
+      4 => Instruction::Output(self.read(a)),
+      5 => Instruction::JmpTrue(self.read(a), self.read(b)),
+      6 => Instruction::JmpFalse(self.read(a), self.read(b)),
+      7 => Instruction::JmpLessThan(self.read(a), self.read(b), self.write(c)),
+      8 => Instruction::JmpEquals(self.read(a), self.read(b), self.write(c)),
       99 => Instruction::Halt,
       _ => panic!("Unknown opcode"),
     }
@@ -137,13 +124,15 @@ impl CPU {
         self.set(c, a * b);
       }
       Instruction::Input(a) => {
-        match self.input {
+        match self.input.pop_front() {
           Some(value) => self.set(a, value),
           None => return State::RequireInput,
         };
       }
       Instruction::Output(a) => {
-        println!("output: {}", a);
+        if self.allow_print {
+          println!("output: {}", a);
+        }
         self.output.push(a);
       }
       Instruction::JmpTrue(a, b) => {
@@ -168,7 +157,13 @@ impl CPU {
     self.execute(instruction)
   }
 
-  pub fn run(&mut self) {
+  pub fn run(&mut self, input: Option<&[SIZE]>) -> Vec<SIZE> {
+    if let Some(value) = input {
+      for val in value.iter() {
+        self.input.push_back(*val);
+      }
+    }
+
     loop {
       match self.step() {
         State::Halted => break,
@@ -179,13 +174,15 @@ impl CPU {
           io::stdin()
             .read_line(&mut input)
             .expect("Failed to read line");
-          self.input = match input.parse() {
-            Ok(value) => Some(value),
+          match input.parse() {
+            Ok(value) => self.input.push_back(value),
             Err(_) => break,
           }
         }
       }
     }
+
+    self.output.clone()
   }
 }
 
@@ -194,8 +191,8 @@ pub fn parse_input(input: &str) -> Vec<SIZE> {
 }
 
 pub fn parse_code(input: &[SIZE]) -> Vec<SIZE> {
-  let mut cpu = CPU::new(input.to_owned(), None);
-  cpu.run();
+  let mut cpu = CPU::new(input.to_owned());
+  cpu.run(None);
 
   cpu.memory
 }
@@ -249,12 +246,10 @@ mod tests {
   }
 
   fn test_cpu(code: Vec<SIZE>, input: SIZE, expected_output: SIZE) -> bool {
-    let mut cpu = CPU::new(code, Some(input));
+    let mut cpu = CPU::new(code);
+    let output = cpu.run(Some(&[input]));
 
-    cpu.run();
-    let output = cpu.output.last().unwrap();
-
-    *output == expected_output
+    *output.last().unwrap() == expected_output
   }
 
   #[test]

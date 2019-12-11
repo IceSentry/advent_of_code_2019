@@ -7,18 +7,18 @@ fn generator_input(input: &str) -> Vec<SIZE> {
 
 #[aoc(day5, part1)]
 fn part1(input: &[SIZE]) -> SIZE {
-  let mut cpu = CPU::new(input.to_owned(), Some(1));
+  let mut cpu = CPU::new(input.to_owned());
 
-  cpu.run();
+  let output = cpu.run(Some(&[1]));
 
-  *cpu.output.last().unwrap()
+  *output.last().unwrap()
 }
 
 #[aoc(day5, part2)]
 fn part2(input: &[SIZE]) -> SIZE {
-  let mut cpu = CPU::new(input.to_owned(), Some(5));
+  let mut cpu = CPU::new(input.to_owned());
 
-  cpu.run();
+  let output = cpu.run(Some(&[5]));
 
-  *cpu.output.last().unwrap()
+  *output.last().unwrap()
 }
