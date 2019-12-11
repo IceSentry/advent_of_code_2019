@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 struct Orbit {
   center: String,
@@ -12,96 +12,116 @@ fn generator_input(input: &str) -> Vec<Orbit> {
     .map(|orbit| {
       let orbits: Vec<&str> = orbit.split(')').collect();
       Orbit {
-        center: orbits[0].to_string(),
-        satelite: orbits[1].to_string(),
+        center: orbits[0].to_owned(),
+        satelite: orbits[1].to_owned(),
       }
     })
     .collect()
 }
 
-fn build_map(orbits: &[Orbit]) -> HashMap<String, Vec<String>> {
-  let mut map: HashMap<String, Vec<String>> = HashMap::new();
-  let mut map_reverse: HashMap<String, Vec<String>> = HashMap::new();
-
-  for orbit in orbits.iter() {
-    match map.get_mut(&orbit.center.clone()) {
-      None => {
-        map.insert(orbit.center.clone(), vec![orbit.satelite.clone()]);
-      }
-      Some(orbits) => {
-        orbits.push(orbit.satelite.clone());
-      }
-    };
-
-    match map_reverse.get_mut(&orbit.satelite.clone()) {
-      None => {
-        map_reverse.insert(orbit.satelite.clone(), vec![orbit.center.clone()]);
-      }
-      Some(orbits) => {
-        orbits.push(orbit.center.clone());
-      }
-    };
-  }
-
-  map
+struct OrbitMap {
+  map: HashMap<String, Vec<String>>,
 }
 
-fn count_orbits(map: &HashMap<String, Vec<String>>, planet: String) -> i32 {
-  match map.get(&planet) {
-    None => 0,
-    Some(orbits) => {
-      let mut count = 0;
-      for orbit in orbits {
-        count += count_orbits(map, orbit.clone()) + 1;
-      }
-      count
+impl OrbitMap {
+  fn build_map(orbits: &[Orbit]) -> Self {
+    let mut map = HashMap::new();
+    for orbit in orbits.iter() {
+      match map.get_mut(&orbit.center.clone()) {
+        None => {
+          map.insert(orbit.center.clone(), vec![orbit.satelite.clone()]);
+        }
+        Some(orbits) => {
+          orbits.push(orbit.satelite.clone());
+        }
+      };
     }
+    OrbitMap { map }
+  }
+
+  fn build_complete_map(orbits: &[Orbit]) -> Self {
+    let mut map = OrbitMap::build_map(orbits).map;
+    for orbit in orbits.iter() {
+      match map.get_mut(&orbit.satelite.clone()) {
+        None => {
+          map.insert(orbit.satelite.clone(), vec![orbit.center.clone()]);
+        }
+        Some(orbits) => {
+          orbits.push(orbit.center.clone());
+        }
+      };
+    }
+    OrbitMap { map }
+  }
+
+  fn count_orbits(&self, planet: &str) -> i32 {
+    match self.map.get(&planet.to_owned()) {
+      None => 0,
+      Some(orbits) => orbits
+        .iter()
+        .map(|orbit| self.count_orbits(&orbit.clone()) + 1)
+        .sum(),
+    }
+  }
+
+  /// Uses Breadth First Search
+  fn find_path(&self, start: &str, target: &str) -> Vec<String> {
+    let mut queue: VecDeque<&str> = VecDeque::new();
+    let mut discovered: HashMap<String, &str> = HashMap::new();
+    let mut path: Vec<String> = vec![target.to_owned()];
+
+    discovered.insert(start.to_owned(), "");
+    queue.push_front(start);
+
+    while !queue.is_empty() {
+      let planet = queue.pop_front().unwrap();
+      if planet == target {
+        break;
+      }
+      for edge in self.map.get(planet).unwrap() {
+        match discovered.get(&edge.to_owned()) {
+          Some(_) => continue,
+          None => {
+            discovered.insert(edge.to_owned(), planet);
+            queue.push_front(edge);
+          }
+        }
+      }
+    }
+
+    let mut current = target;
+    while current != start {
+      current = discovered.get(&current.to_owned()).unwrap();
+      path.push(current.to_owned());
+    }
+
+    path.reverse(); // Not necessary for the puzzle
+    path
   }
 }
 
 #[aoc(day6, part1)]
 fn part1(input: &[Orbit]) -> i32 {
-  let map = build_map(input);
+  let orbit_map = OrbitMap::build_map(input);
 
-  map
+  orbit_map
+    .map
     .keys()
-    .fold(0, |acc, planet| acc + count_orbits(&map, planet.clone()))
-}
-
-fn find_parent(map: &HashMap<String, Vec<String>>, planet: String) -> String {
-  map
-    .iter()
-    .filter(|(_, orbits)| orbits.contains(&planet))
-    .map(|(planet, _)| planet.clone())
-    .collect::<Vec<String>>()
-    .first()
-    .unwrap()
-    .clone()
+    .map(|planet| orbit_map.count_orbits(&planet.clone()))
+    .sum()
 }
 
 #[aoc(day6, part2)]
-fn part2(input: &[Orbit]) -> i32 {
-  let map = build_map(input);
-
-  let start_planet = find_parent(&map, "YOU".to_string());
-  let end_planet = find_parent(&map, "SAN".to_string());
-
-  println!("start: {} end: {}", start_planet, end_planet);
-
-  // let start_planet = for (center, orbits) in map.iter() {
-  //   if orbits.contains(&"YOU".to_string()) {
-  //     return center;
-  //   }
-  // };
-
-  // println!("{}", start_planet);
-
-  0
+fn part2(input: &[Orbit]) -> usize {
+  let orbit_map = OrbitMap::build_complete_map(input);
+  let path = orbit_map.find_path("YOU", "SAN");
+  path.len() - 3 // remove YOU and SAN from count and
+                 // -1 because we count the jumps not the planets
 }
 
 #[cfg(test)]
 mod tests {
-  use super::{build_map, count_orbits, generator_input, part1, part2};
+  use super::{generator_input, part1, part2, OrbitMap};
 
   #[test]
   fn test_day6_part1() {
@@ -122,13 +142,13 @@ mod tests {
   fn test_custom() {
     let input = generator_input("COM)B\nB)C\nC)D\nC)E");
 
-    let map = build_map(&input);
+    let map = OrbitMap::build_map(&input);
 
-    assert_eq!(count_orbits(&map, "COM".to_string()), 4);
-    assert_eq!(count_orbits(&map, "B".to_string()), 3);
-    assert_eq!(count_orbits(&map, "C".to_string()), 2);
-    assert_eq!(count_orbits(&map, "D".to_string()), 0);
-    assert_eq!(count_orbits(&map, "E".to_string()), 0);
+    assert_eq!(map.count_orbits("COM"), 4);
+    assert_eq!(map.count_orbits("B"), 3);
+    assert_eq!(map.count_orbits("C"), 2);
+    assert_eq!(map.count_orbits("D"), 0);
+    assert_eq!(map.count_orbits("E"), 0);
 
     assert_eq!(part1(&input), 9);
   }
