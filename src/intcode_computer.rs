@@ -18,26 +18,41 @@ impl ParamMode {
   }
 }
 
-enum Instruction {
-  Add(SIZE, SIZE, SIZE),
-  Multiply(SIZE, SIZE, SIZE),
-  Input(SIZE),
-  Output(SIZE),
-  JmpTrue(SIZE, SIZE),
-  JmpFalse(SIZE, SIZE),
-  JmpLessThan(SIZE, SIZE, SIZE),
-  JmpEquals(SIZE, SIZE, SIZE),
+enum Opcode {
+  Add,
+  Multiply,
+  Input,
+  Output,
+  JmpTrue,
+  JmpFalse,
+  JmpLessThan,
+  JmpEquals,
   Halt,
 }
 
-impl Instruction {
-  fn from(instruction: SIZE) -> (SIZE, ParamMode, ParamMode, ParamMode) {
-    let opcode = instruction % 100;
-    let a = ParamMode::from((instruction / 100) % 10);
-    let b = ParamMode::from((instruction / 1000) % 10);
-    let c = ParamMode::from((instruction / 10000) % 10);
-    (opcode, a, b, c)
+impl Opcode {
+  fn from(opcode: SIZE) -> Self {
+    match opcode {
+      1 => Opcode::Add,
+      2 => Opcode::Multiply,
+      3 => Opcode::Input,
+      4 => Opcode::Output,
+      5 => Opcode::JmpTrue,
+      6 => Opcode::JmpFalse,
+      7 => Opcode::JmpLessThan,
+      8 => Opcode::JmpEquals,
+      99 => Opcode::Halt,
+      _ => panic!("Unknown opcode"),
+    }
   }
+}
+
+fn parse_instruction(instruction: SIZE) -> (SIZE, ParamMode, ParamMode, ParamMode) {
+  let opcode = instruction % 100;
+  let a = ParamMode::from((instruction / 100) % 10);
+  let b = ParamMode::from((instruction / 1000) % 10);
+  let c = ParamMode::from((instruction / 10000) % 10);
+  (opcode, a, b, c)
 }
 
 #[derive(PartialEq)]
@@ -77,7 +92,7 @@ impl CPU {
     self.memory[addr as usize]
   }
 
-  fn read(&mut self, mode: ParamMode) -> SIZE {
+  fn read_param(&mut self, mode: ParamMode) -> SIZE {
     let val = self.fetch();
 
     match mode {
@@ -86,11 +101,15 @@ impl CPU {
     }
   }
 
-  fn write(&mut self, mode: ParamMode) -> SIZE {
+  fn read_params(&mut self, a: ParamMode, b: ParamMode) -> (SIZE, SIZE) {
+    (self.read_param(a), self.read_param(b))
+  }
+
+  fn write(&mut self, mode: ParamMode, value: SIZE) {
     let val = self.fetch();
 
     match mode {
-      ParamMode::Position => val,
+      ParamMode::Position => self.set(val, value),
       ParamMode::Immediate => {
         panic!("Parameters that an instruction writes to will never be in immediate mode")
       }
@@ -101,56 +120,60 @@ impl CPU {
     self.memory[addr as usize] = val;
   }
 
-  fn decode(&mut self, (opcode, a, b, c): (SIZE, ParamMode, ParamMode, ParamMode)) -> Instruction {
-    match opcode {
-      1 => Instruction::Add(self.read(a), self.read(b), self.write(c)),
-      2 => Instruction::Multiply(self.read(a), self.read(b), self.write(c)),
-      3 => Instruction::Input(self.write(a)),
-      4 => Instruction::Output(self.read(a)),
-      5 => Instruction::JmpTrue(self.read(a), self.read(b)),
-      6 => Instruction::JmpFalse(self.read(a), self.read(b)),
-      7 => Instruction::JmpLessThan(self.read(a), self.read(b), self.write(c)),
-      8 => Instruction::JmpEquals(self.read(a), self.read(b), self.write(c)),
-      99 => Instruction::Halt,
-      _ => panic!("Unknown opcode"),
-    }
-  }
-
   fn execute(&mut self, instruction: SIZE) -> State {
-    match self.decode(Instruction::from(instruction)) {
-      Instruction::Add(a, b, c) => {
-        self.set(c, a + b);
+    let (opcode, a, b, c) = parse_instruction(instruction);
+
+    match Opcode::from(opcode) {
+      Opcode::Add => {
+        let (a, b) = self.read_params(a, b);
+        self.write(c, a + b);
       }
-      Instruction::Multiply(a, b, c) => {
-        self.set(c, a * b);
+      Opcode::Multiply => {
+        let (a, b) = self.read_params(a, b);
+        self.write(c, a * b);
       }
-      Instruction::Input(a) => {
+      Opcode::Input => {
         match self.input.pop_front() {
-          Some(value) => self.set(a, value),
+          Some(value) => {
+            if self.allow_print {
+              println!("{}", value)
+            }
+            self.write(a, value)
+          }
           None => return State::Input,
         };
       }
-      Instruction::Output(a) => {
+      Opcode::Output => {
+        let a = self.read_param(a);
         if self.allow_print {
           println!("output: {}", a);
         }
         self.output.push(a);
         return State::Output;
       }
-      Instruction::JmpTrue(a, b) => {
+      Opcode::JmpTrue => {
+        let (a, b) = self.read_params(a, b);
         if a != 0 {
           self.instruction_pointer = b;
         }
       }
-      Instruction::JmpFalse(a, b) => {
+      Opcode::JmpFalse => {
+        let (a, b) = self.read_params(a, b);
         if a == 0 {
           self.instruction_pointer = b;
         }
       }
-      Instruction::JmpLessThan(a, b, c) => self.set(c, if a < b { 1 } else { 0 }),
-      Instruction::JmpEquals(a, b, c) => self.set(c, if a == b { 1 } else { 0 }),
-      Instruction::Halt => return State::Halt,
+      Opcode::JmpLessThan => {
+        let (a, b) = self.read_params(a, b);
+        self.write(c, if a < b { 1 } else { 0 });
+      }
+      Opcode::JmpEquals => {
+        let (a, b) = self.read_params(a, b);
+        self.write(c, if a == b { 1 } else { 0 });
+      }
+      Opcode::Halt => return State::Halt,
     }
+
     State::Running
   }
 
@@ -214,19 +237,19 @@ mod tests {
 
   #[test]
   fn test_parse_instruction() {
-    let (opcode, p1, p2, p3) = Instruction::from(1002);
+    let (opcode, p1, p2, p3) = parse_instruction(1002);
     assert_eq!(opcode, 2);
     assert_eq!(p1, ParamMode::Position);
     assert_eq!(p2, ParamMode::Immediate);
     assert_eq!(p3, ParamMode::Position);
 
-    let (opcode, p1, p2, p3) = Instruction::from(2);
+    let (opcode, p1, p2, p3) = parse_instruction(2);
     assert_eq!(opcode, 2);
     assert_eq!(p1, ParamMode::Position);
     assert_eq!(p2, ParamMode::Position);
     assert_eq!(p3, ParamMode::Position);
 
-    let (opcode, p1, p2, p3) = Instruction::from(104);
+    let (opcode, p1, p2, p3) = parse_instruction(104);
     assert_eq!(opcode, 4);
     assert_eq!(p1, ParamMode::Immediate);
     assert_eq!(p2, ParamMode::Position);
