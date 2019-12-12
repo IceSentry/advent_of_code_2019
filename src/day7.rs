@@ -12,6 +12,7 @@ fn init_amplifiers(code: &[SIZE], phase_settings: &[SIZE]) -> Vec<CPU> {
     .iter()
     .map(|phase_setting| {
       let mut cpu = CPU::new(code.to_owned());
+      cpu.halt_on_output = true;
       cpu.input.push_back(*phase_setting);
       cpu
     })

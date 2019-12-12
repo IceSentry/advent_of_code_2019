@@ -1,11 +1,12 @@
 use std::collections::VecDeque;
 
-pub type SIZE = i128;
+pub type SIZE = i64;
 
 #[derive(PartialEq, Debug)]
 enum ParamMode {
   Immediate,
   Position,
+  Relative,
 }
 
 impl ParamMode {
@@ -13,6 +14,7 @@ impl ParamMode {
     match param {
       0 => ParamMode::Position,
       1 => ParamMode::Immediate,
+      2 => ParamMode::Relative,
       _ => panic!("Unknown ParamMode"),
     }
   }
@@ -27,6 +29,7 @@ enum Opcode {
   JmpFalse,
   JmpLessThan,
   JmpEquals,
+  SetRelativeBase,
   Halt,
 }
 
@@ -41,6 +44,7 @@ impl Opcode {
       6 => Opcode::JmpFalse,
       7 => Opcode::JmpLessThan,
       8 => Opcode::JmpEquals,
+      9 => Opcode::SetRelativeBase,
       99 => Opcode::Halt,
       _ => panic!("Unknown opcode"),
     }
@@ -64,20 +68,24 @@ pub enum State {
 }
 
 pub struct CPU {
-  instruction_pointer: SIZE,
-  memory: Vec<SIZE>,
   pub input: VecDeque<SIZE>,
   pub output: Vec<SIZE>,
+  pub halt_on_output: bool,
+  instruction_pointer: SIZE,
+  memory: Vec<SIZE>,
+  relative_base: SIZE,
   allow_print: bool,
 }
 
 impl CPU {
   pub fn new(memory: Vec<SIZE>) -> Self {
     CPU {
-      instruction_pointer: 0,
-      memory,
       input: VecDeque::new(),
       output: Vec::new(),
+      halt_on_output: false,
+      instruction_pointer: 0,
+      memory,
+      relative_base: 0,
       allow_print: cfg!(test),
     }
   }
@@ -88,16 +96,30 @@ impl CPU {
     instruction
   }
 
-  fn get(&self, addr: SIZE) -> SIZE {
+  fn get(&mut self, addr: SIZE) -> SIZE {
+    self.memory_size_check(addr);
     self.memory[addr as usize]
   }
 
+  fn set(&mut self, addr: SIZE, val: SIZE) {
+    self.memory_size_check(addr);
+    self.memory[addr as usize] = val;
+  }
+
+  fn memory_size_check(&mut self, addr: SIZE) {
+    let len = self.memory.len();
+    if addr as usize >= len {
+      self.memory.resize(addr as usize + 100, 0)
+    }
+  }
+
   fn read_param(&mut self, mode: ParamMode) -> SIZE {
-    let val = self.fetch();
+    let value = self.fetch();
 
     match mode {
-      ParamMode::Position => self.get(val),
-      ParamMode::Immediate => val,
+      ParamMode::Position => self.get(value),
+      ParamMode::Immediate => value,
+      ParamMode::Relative => self.get(self.relative_base + value),
     }
   }
 
@@ -106,18 +128,15 @@ impl CPU {
   }
 
   fn write(&mut self, mode: ParamMode, value: SIZE) {
-    let val = self.fetch();
+    let addr = self.fetch();
 
     match mode {
-      ParamMode::Position => self.set(val, value),
+      ParamMode::Position => self.set(addr, value),
       ParamMode::Immediate => {
         panic!("Parameters that an instruction writes to will never be in immediate mode")
       }
+      ParamMode::Relative => self.set(self.relative_base + addr, value),
     }
-  }
-
-  fn set(&mut self, addr: SIZE, val: SIZE) {
-    self.memory[addr as usize] = val;
   }
 
   fn execute(&mut self, instruction: SIZE) -> State {
@@ -140,7 +159,9 @@ impl CPU {
             }
             self.write(a, value)
           }
-          None => return State::Input,
+          None => {
+            return State::Input;
+          }
         };
       }
       Opcode::Output => {
@@ -149,7 +170,9 @@ impl CPU {
           println!("output: {}", a);
         }
         self.output.push(a);
-        return State::Output;
+        if self.halt_on_output {
+          return State::Output;
+        }
       }
       Opcode::JmpTrue => {
         let (a, b) = self.read_params(a, b);
@@ -170,6 +193,10 @@ impl CPU {
       Opcode::JmpEquals => {
         let (a, b) = self.read_params(a, b);
         self.write(c, if a == b { 1 } else { 0 });
+      }
+      Opcode::SetRelativeBase => {
+        let a = self.read_param(a);
+        self.relative_base += a;
       }
       Opcode::Halt => return State::Halt,
     }
@@ -329,5 +356,27 @@ mod tests {
 
     let input = 9;
     assert!(test_cpu(code.clone(), input, 1001), " > 8");
+  }
+
+  #[test]
+  fn test_relative() {
+    let code = vec![
+      109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99,
+    ];
+    let mut cpu = CPU::new(code.clone());
+    cpu.run(None);
+    assert_eq!(cpu.output, code.clone());
+
+    let code = vec![1102, 34_915_192, 34_915_192, 7, 4, 7, 99, 0];
+    let mut cpu = CPU::new(code.clone());
+    cpu.run(None);
+    println!("{:?}", cpu.output);
+    assert_eq!(cpu.output[0], 1_219_070_632_396_864);
+
+    let code = vec![104, 1_125_899_906_842_624, 99];
+    let mut cpu = CPU::new(code.clone());
+    cpu.run(None);
+    println!("{:?}", cpu.output);
+    assert_eq!(cpu.output[0], 1_125_899_906_842_624);
   }
 }
