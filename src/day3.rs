@@ -3,20 +3,18 @@ use std::iter::FromIterator;
 
 #[derive(PartialEq, Eq, Hash, Clone)]
 struct Point(i32, i32);
-
 fn parse_wire(wire_string: &str) -> Vec<Point> {
     let mut wire = vec![];
     let mut x = 0;
     let mut y = 0;
 
-    for s in wire_string.split(',') {
-        let mut chars = s.chars();
-        let dir = chars.next();
-
+    for step in wire_string.split(',') {
+        let mut chars = step.chars();
+        let direction = chars.next();
         let len: i32 = chars.as_str().parse().unwrap();
 
         for _ in 0..len {
-            match dir.unwrap() {
+            match direction.unwrap() {
                 'U' => y += 1,
                 'D' => y -= 1,
                 'L' => x -= 1,
