@@ -1,5 +1,7 @@
 use crate::intcode_computer::{parse_input, State, CPU, SIZE};
 
+use rayon::prelude::*;
+
 use permute;
 
 #[aoc_generator(day7)]
@@ -39,7 +41,8 @@ fn part1(input: &[SIZE]) -> SIZE {
     let phase_settings = vec![0, 1, 2, 3, 4];
 
     permute::permute(phase_settings)
-        .iter()
+        .par_iter()
+        // .iter()
         .map(|phase_setting| test_phase_setting(input, phase_setting.to_owned()))
         .max()
         .unwrap()
@@ -50,7 +53,8 @@ fn part2(input: &[SIZE]) -> SIZE {
     let phase_settings = vec![5, 6, 7, 8, 9];
 
     permute::permute(phase_settings)
-        .iter()
+        .par_iter()
+        // .iter()
         .map(|phase_setting| test_phase_setting(input, phase_setting.to_owned()))
         .max()
         .unwrap()
