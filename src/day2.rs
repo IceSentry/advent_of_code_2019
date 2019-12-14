@@ -5,15 +5,18 @@ fn find_pair(input: &[SIZE], target_value: SIZE) -> (SIZE, SIZE) {
     let mut verb = 0;
 
     loop {
+        if noun == 99 {
+            return (0, 0);
+        }
         loop {
             let mut input_copy = input.to_owned();
 
             input_copy[1] = noun;
             input_copy[2] = verb;
 
-            parse_code(&input_copy);
+            let result = parse_code(&input_copy);
 
-            if input_copy[0] == target_value {
+            if result[0] == target_value {
                 return (noun, verb);
             } else if verb >= 99 {
                 break;
