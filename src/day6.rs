@@ -124,14 +124,14 @@ mod tests {
     use super::{generator_input, part1, part2, OrbitMap};
 
     #[test]
-    fn test_day6_part1() {
+    fn test_day06_part1() {
         let input = generator_input("COM)B\nB)C\nC)D\nD)E\nE)F\nB)G\nG)H\nD)I\nE)J\nJ)K\nK)L");
 
         assert_eq!(part1(&input), 42);
     }
 
     #[test]
-    fn test_day6_part2() {
+    fn test_day06_part2() {
         let input = generator_input(
             "COM)B\nB)C\nC)D\nD)E\nE)F\nB)G\nG)H\nD)I\nE)J\nJ)K\nK)L\nK)YOU\nI)SAN",
         );

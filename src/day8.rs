@@ -72,7 +72,7 @@ fn part2(layers: &[u32]) -> String {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     fn parse_image(data: &[u32], width: u32, heigth: u32) -> Vec<&[u32]> {

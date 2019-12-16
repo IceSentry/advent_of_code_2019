@@ -64,7 +64,7 @@ mod tests {
     use super::{part1, part1_map};
 
     #[test]
-    fn test_part1() {
+    fn test_day01_part1() {
         assert_eq!(part1("12"), 2);
         assert_eq!(part1_map("12"), part1("12"));
         assert_eq!(part1("14"), 2);

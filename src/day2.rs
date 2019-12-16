@@ -56,7 +56,7 @@ pub fn part2(input: &[SIZE]) -> SIZE {
 mod tests {
     use crate::intcode_computer::parse_code;
     #[test]
-    fn test_day2_part1() {
+    fn test_day02_part1() {
         let input = vec![1, 0, 0, 0, 99];
         let result = parse_code(&input);
         assert_eq!(result[0], 2);

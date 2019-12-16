@@ -61,11 +61,11 @@ fn part2(input: &[SIZE]) -> SIZE {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::test_phase_setting;
 
     #[test]
-    fn test_day7_part1() {
+    fn test_day07_part1() {
         let input = vec![
             3, 15, 3, 16, 1002, 16, 10, 16, 1, 16, 15, 15, 4, 15, 99, 0, 0,
         ];
@@ -94,7 +94,7 @@ mod test {
     }
 
     #[test]
-    fn test_day7_part2() {
+    fn test_day07_part2() {
         let input = vec![
             3, 26, 1001, 26, -4, 26, 3, 27, 1002, 27, 2, 27, 1, 27, 26, 27, 4, 27, 1001, 28, -1,
             28, 1005, 28, 6, 99, 0, 0, 5,

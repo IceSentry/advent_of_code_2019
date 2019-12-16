@@ -85,7 +85,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_day4_part1() {
+    fn test_day04_part1() {
         assert!(validate_password_part1(&String::from("111111")));
         assert!(validate_password_part1(&String::from("223456")));
         assert!(!validate_password_part1(&String::from("223450")));
@@ -93,7 +93,7 @@ mod tests {
     }
 
     #[test]
-    fn test_day4_part2() {
+    fn test_day04_part2() {
         assert!(
             validate_password_part2(&String::from("112233")),
             "digits never decrease and are repeated at 2 digits"
