@@ -1,44 +1,272 @@
-fn line(x0: i32, y0: i32, x1: i32, y1: i32) -> Vec<(i32, i32)> {
-    let mut path: Vec<(i32, i32)> = Vec::new();
-    let deltax = x1 - x0;
-    let deltay = y1 - y0;
-    let deltaerr = (deltay as f32 / deltax as f32).abs(); // Assume deltax != 0 (line is not vertical),
-                                                          // note that this division needs to be done in a way that preserves the fractional part
-    let mut error = 0.0; // No error at start
-    let mut y = y0;
-    for x in x0..x1 {
-        path.push((x, y));
-        error += deltaerr;
-        if error >= 0.5 {
-            y += deltay.signum();
-            error -= 1.0;
-        }
+use itertools::Itertools;
+use ordered_float::OrderedFloat;
+use std::collections::HashMap;
+use std::collections::HashSet;
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
+struct Vector2 {
+    x: i32,
+    y: i32,
+}
+
+#[derive(Copy, Clone, Debug)]
+struct AsteroidInfo {
+    position: Vector2,
+    distance: f32,
+    slope: f32,
+}
+
+impl Vector2 {
+    fn distance_to(self, target: Vector2) -> f32 {
+        (((self.x - target.x).pow(2) + (self.y - target.y).pow(2)) as f32).sqrt()
     }
 
-    path
+    fn slope_to(self, target: Vector2) -> f32 {
+        let deltax = target.x - self.x;
+        let deltay = target.y - self.y;
+        (deltay as f32).atan2(deltax as f32)
+    }
+}
+
+struct AsteroidMap {
+    asteroids: HashSet<Vector2>,
+}
+
+impl AsteroidMap {
+    fn from(input: &str) -> Self {
+        let width = input.find('\n').unwrap() as i32;
+        let mut asteroids = HashSet::new();
+        for (i, point) in input.replace('\n', "").chars().enumerate() {
+            if point == '#' {
+                let asteroid = Vector2 {
+                    x: i as i32 % width,
+                    y: i as i32 / width,
+                };
+                asteroids.insert(asteroid);
+            }
+        }
+
+        AsteroidMap { asteroids }
+    }
+
+    fn eval_position(&self, position: Vector2) -> Vec<AsteroidInfo> {
+        let mut asteroids_info: Vec<AsteroidInfo> = Vec::new();
+        for asteroid in self.asteroids.iter() {
+            if *asteroid == position {
+                continue;
+            }
+            asteroids_info.push(AsteroidInfo {
+                slope: position.slope_to(*asteroid),
+                position: *asteroid,
+                distance: position.distance_to(*asteroid),
+            });
+        }
+        asteroids_info
+    }
+
+    fn find_best_position(&self) -> (Vector2, i32) {
+        self.asteroids
+            .iter()
+            .map(|ast| {
+                let slopes: HashMap<String, AsteroidInfo> = self
+                    .eval_position(*ast)
+                    .iter()
+                    .map(|info| (info.slope.to_string(), *info))
+                    .collect();
+                (*ast, slopes.len() as i32)
+            })
+            .max_by_key(|(_, count)| *count)
+            .unwrap()
+    }
+}
+
+#[aoc_generator(day10)]
+fn generator_input(input: &str) -> AsteroidMap {
+    AsteroidMap::from(input)
 }
 
 #[aoc(day10, part1)]
-fn part1(input: &str) -> String {
-    let _map: Vec<char> = input.replace('\n', "").chars().collect();
-    let mut map_plot: Vec<char> = input
-        .chars()
-        // .map(|x| match x {
-        //     '\n' => x,
-        //     _ => ' ',
-        // })
+fn part1(map: &AsteroidMap) -> String {
+    let (_, count) = map.find_best_position();
+
+    format!("{}", count)
+}
+
+/// Solution for 1 is more than 200 so we don't need to care about more than 1 rotation
+#[aoc(day10, part2)]
+fn part2(map: &AsteroidMap) -> i32 {
+    let (position, _) = map.find_best_position();
+
+    let mut slopes: Vec<AsteroidInfo> = map
+        .eval_position(position)
+        .iter()
+        .map(|info| {
+            let mut slope = info.slope * -1.0;
+            if slope <= std::f32::consts::FRAC_PI_2 {
+                slope += 2.0 * std::f32::consts::PI;
+            }
+
+            AsteroidInfo {
+                distance: info.distance,
+                position: info.position,
+                slope,
+            }
+        })
         .collect();
 
-    let path = line(0, 0, 8, 6);
-    for point in path.iter() {
-        println!("{:?}", point);
-        map_plot[(point.0 + point.1 * 32) as usize] = 'X';
+    slopes.sort_by(|info_a, info_b| info_a.slope.partial_cmp(&info_b.slope).unwrap());
+    slopes.reverse();
+
+    let grouped_slopes = slopes.iter().group_by(|info| info.slope);
+
+    for (i, (_, group)) in grouped_slopes.into_iter().enumerate() {
+        if i == 199 {
+            let ast = group.min_by_key(|x| OrderedFloat(x.distance)).unwrap();
+            println!("{:?}", ast);
+            return ast.position.x * 100 + ast.position.y;
+        }
     }
 
-    let map_plot: String = map_plot.into_iter().collect();
-    println!("{}", map_plot);
+    panic!("didn't find a 200th asteroid")
+}
 
-    let mut input = input.replace('\n', "").to_owned();
-    input.insert(0, '\n');
-    input
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn day10_example() {
+        let map = AsteroidMap::from(
+            ".#..#\n\
+             .....\n\
+             #####\n\
+             ....#\n\
+             ...##",
+        );
+
+        let result = map.find_best_position();
+        assert_eq!(result, (Vector2 { x: 3, y: 4 }, 8));
+    }
+
+    #[test]
+    fn test_day10_part1() {
+        let map = AsteroidMap::from(
+            "......#.#.\n\
+             #..#.#....\n\
+             ..#######.\n\
+             .#.#.###..\n\
+             .#..#.....\n\
+             ..#....#.#\n\
+             #..#....#.\n\
+             .##.#..###\n\
+             ##...#..#.\n\
+             .#....####",
+        );
+
+        let target = Vector2 { x: 5, y: 8 };
+
+        let result = map.find_best_position();
+        assert_eq!(result, (target, 33));
+
+        let map = AsteroidMap::from(
+            "#.#...#.#.\n\
+             .###....#.\n\
+             .#....#...\n\
+             ##.#.#.#.#\n\
+             ....#.#.#.\n\
+             .##..###.#\n\
+             ..#...##..\n\
+             ..##....##\n\
+             ......#...\n\
+             .####.###.",
+        );
+
+        let result = map.find_best_position();
+        assert_eq!(result, (Vector2 { x: 1, y: 2 }, 35));
+
+        let map = AsteroidMap::from(
+            ".#..#..###\n\
+             ####.###.#\n\
+             ....###.#.\n\
+             ..###.##.#\n\
+             ##.##.#.#.\n\
+             ....###..#\n\
+             ..#.#..#.#\n\
+             #..#.#.###\n\
+             .##...##.#\n\
+             .....#.#..",
+        );
+
+        let result = map.find_best_position();
+        assert_eq!(result, (Vector2 { x: 6, y: 3 }, 41));
+
+        let map = AsteroidMap::from(
+            ".#..##.###...#######\n\
+             ##.############..##.\n\
+             .#.######.########.#\n\
+             .###.#######.####.#.\n\
+             #####.##.#.##.###.##\n\
+             ..#####..#.#########\n\
+             ####################\n\
+             #.####....###.#.#.##\n\
+             ##.#################\n\
+             #####.##.###..####..\n\
+             ..######..##.#######\n\
+             ####.##.####...##..#\n\
+             .#####..#.######.###\n\
+             ##...#.##########...\n\
+             #.##########.#######\n\
+             .####.#.###.###.#.##\n\
+             ....##.##.###..#####\n\
+             .#.#.###########.###\n\
+             #.#.#.#####.####.###\n\
+             ###.##.####.##.#..##",
+        );
+
+        let result = map.find_best_position();
+        assert_eq!(result, (Vector2 { x: 11, y: 13 }, 210));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_day10_part2_simple() {
+        let map = AsteroidMap::from(
+            ".#..#\n\
+             .....\n\
+             #####\n\
+             ....#\n\
+             ...##",
+        );
+
+        part2(&map);
+    }
+
+    #[test]
+    fn test_day10_part2() {
+        let map = AsteroidMap::from(
+            ".#..##.###...#######\n\
+             ##.############..##.\n\
+             .#.######.########.#\n\
+             .###.#######.####.#.\n\
+             #####.##.#.##.###.##\n\
+             ..#####..#.#########\n\
+             ####################\n\
+             #.####....###.#.#.##\n\
+             ##.#################\n\
+             #####.##.###..####..\n\
+             ..######..##.#######\n\
+             ####.##.####...##..#\n\
+             .#####..#.######.###\n\
+             ##...#.##########...\n\
+             #.##########.#######\n\
+             .####.#.###.###.#.##\n\
+             ....##.##.###..#####\n\
+             .#.#.###########.###\n\
+             #.#.#.#####.####.###\n\
+             ###.##.####.##.#..##",
+        );
+
+        let result = part2(&map);
+        assert_eq!(result, 802);
+    }
 }
