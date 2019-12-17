@@ -98,7 +98,7 @@ impl AsteroidMap {
             }
         }
 
-        panic!("Failed to destory required amount")
+        panic!("Failed to destroy required amount")
     }
 }
 
@@ -117,8 +117,8 @@ fn part1(map: &AsteroidMap) -> String {
 #[aoc(day10, part2)]
 fn part2(map: &AsteroidMap) -> i32 {
     let part1_result = Vector2 { x: 17, y: 22 };
-    let ast = map.destroy_asteroids(part1_result, 200);
-    ast.position.x * 100 + ast.position.y
+    let last_asteroid = map.destroy_asteroids(part1_result, 200);
+    last_asteroid.position.x * 100 + last_asteroid.position.y
 }
 
 #[cfg(test)]
@@ -219,7 +219,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn test_day10_part2_simple() {
         let map = AsteroidMap::from(
             ".#..#\n\
@@ -229,7 +228,10 @@ mod tests {
              ...##",
         );
 
-        part2(&map);
+        let ast = map.destroy_asteroids(Vector2 { x: 3, y: 4 }, 1);
+        assert_eq!(ast.position, Vector2 { x: 3, y: 2 }, "Starts at PI/2");
+        let ast = map.destroy_asteroids(Vector2 { x: 3, y: 4 }, 2);
+        assert_eq!(ast.position, Vector2 { x: 4, y: 0 }, "Goes clockwise");
     }
 
     #[test]
