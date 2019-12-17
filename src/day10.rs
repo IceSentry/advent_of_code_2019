@@ -25,8 +25,9 @@ impl Vector2 {
         let deltay = target.y - self.y;
         let slope = (deltay as f32).atan2(deltax as f32);
 
-        let mut slope = slope * -1.0;
+        let mut slope = slope * -1.0; // reverse because unit circle is upside down, because 0,0 is top left
         if slope <= std::f32::consts::FRAC_PI_2 {
+            // make sure to start at PI/2 (90 degrees)
             slope += 2.0 * std::f32::consts::PI;
         }
         slope
@@ -68,6 +69,7 @@ impl AsteroidMap {
         asteroids_info
     }
 
+    /// This is O(N^2)
     fn find_best_position(&self) -> (Vector2, i32) {
         self.asteroids
             .iter()
@@ -87,7 +89,7 @@ impl AsteroidMap {
         let mut asteroids: Vec<AsteroidInfo> = self.eval_position(position);
 
         asteroids.sort_by(|info_a, info_b| info_a.slope.partial_cmp(&info_b.slope).unwrap());
-        asteroids.reverse();
+        asteroids.reverse(); // Go clockwise
 
         let grouped_by_slopes = asteroids.iter().group_by(|info| info.slope);
 
