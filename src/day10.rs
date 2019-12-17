@@ -1,6 +1,5 @@
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use std::collections::HashMap;
 use std::collections::HashSet;
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
@@ -24,7 +23,13 @@ impl Vector2 {
     fn slope_to(self, target: Vector2) -> f32 {
         let deltax = target.x - self.x;
         let deltay = target.y - self.y;
-        (deltay as f32).atan2(deltax as f32)
+        let slope = (deltay as f32).atan2(deltax as f32);
+
+        let mut slope = slope * -1.0;
+        if slope <= std::f32::consts::FRAC_PI_2 {
+            slope += 2.0 * std::f32::consts::PI;
+        }
+        slope
     }
 }
 
@@ -38,11 +43,10 @@ impl AsteroidMap {
         let mut asteroids = HashSet::new();
         for (i, point) in input.replace('\n', "").chars().enumerate() {
             if point == '#' {
-                let asteroid = Vector2 {
+                asteroids.insert(Vector2 {
                     x: i as i32 % width,
                     y: i as i32 / width,
-                };
-                asteroids.insert(asteroid);
+                });
             }
         }
 
@@ -68,15 +72,33 @@ impl AsteroidMap {
         self.asteroids
             .iter()
             .map(|ast| {
-                let slopes: HashMap<String, AsteroidInfo> = self
+                let slopes: HashSet<String> = self
                     .eval_position(*ast)
                     .iter()
-                    .map(|info| (info.slope.to_string(), *info))
+                    .map(|info| info.slope.to_string())
                     .collect();
                 (*ast, slopes.len() as i32)
             })
             .max_by_key(|(_, count)| *count)
             .unwrap()
+    }
+
+    fn destroy_asteroids(&self, position: Vector2, target_amout: i32) -> AsteroidInfo {
+        let mut asteroids: Vec<AsteroidInfo> = self.eval_position(position);
+
+        asteroids.sort_by(|info_a, info_b| info_a.slope.partial_cmp(&info_b.slope).unwrap());
+        asteroids.reverse();
+
+        let grouped_by_slopes = asteroids.iter().group_by(|info| info.slope);
+
+        for (i, (_, group)) in grouped_by_slopes.into_iter().enumerate() {
+            if i as i32 == target_amout - 1 {
+                let ast = group.min_by_key(|x| OrderedFloat(x.distance)).unwrap();
+                return *ast;
+            }
+        }
+
+        panic!("Failed to destory required amount")
     }
 }
 
@@ -88,46 +110,15 @@ fn generator_input(input: &str) -> AsteroidMap {
 #[aoc(day10, part1)]
 fn part1(map: &AsteroidMap) -> String {
     let (_, count) = map.find_best_position();
-
     format!("{}", count)
 }
 
 /// Solution for 1 is more than 200 so we don't need to care about more than 1 rotation
 #[aoc(day10, part2)]
 fn part2(map: &AsteroidMap) -> i32 {
-    let (position, _) = map.find_best_position();
-
-    let mut slopes: Vec<AsteroidInfo> = map
-        .eval_position(position)
-        .iter()
-        .map(|info| {
-            let mut slope = info.slope * -1.0;
-            if slope <= std::f32::consts::FRAC_PI_2 {
-                slope += 2.0 * std::f32::consts::PI;
-            }
-
-            AsteroidInfo {
-                distance: info.distance,
-                position: info.position,
-                slope,
-            }
-        })
-        .collect();
-
-    slopes.sort_by(|info_a, info_b| info_a.slope.partial_cmp(&info_b.slope).unwrap());
-    slopes.reverse();
-
-    let grouped_slopes = slopes.iter().group_by(|info| info.slope);
-
-    for (i, (_, group)) in grouped_slopes.into_iter().enumerate() {
-        if i == 199 {
-            let ast = group.min_by_key(|x| OrderedFloat(x.distance)).unwrap();
-            println!("{:?}", ast);
-            return ast.position.x * 100 + ast.position.y;
-        }
-    }
-
-    panic!("didn't find a 200th asteroid")
+    let part1_result = Vector2 { x: 17, y: 22 };
+    let ast = map.destroy_asteroids(part1_result, 200);
+    ast.position.x * 100 + ast.position.y
 }
 
 #[cfg(test)]
@@ -266,7 +257,8 @@ mod tests {
              ###.##.####.##.#..##",
         );
 
-        let result = part2(&map);
-        assert_eq!(result, 802);
+        let ast = map.destroy_asteroids(Vector2 { x: 11, y: 13 }, 200);
+
+        assert_eq!(ast.position, Vector2 { x: 8, y: 2 });
     }
 }
