@@ -27,10 +27,11 @@ fn test_phase_setting(code: &[SIZE], phase_setting: Vec<SIZE>) -> SIZE {
     let mut phase_signal = 0;
     for (phase_index, _) in phase_setting.iter().enumerate().cycle() {
         let cpu = &mut cpus[phase_index];
-        if let State::Halt = cpu.run(Some(phase_signal)) {
-            break;
+        match cpu.run(Some(phase_signal)) {
+            State::Output(output) => phase_signal = output,
+            State::Halt => break,
+            _ => continue,
         };
-        phase_signal = cpu.output.pop().expect("No output");
     }
 
     phase_signal

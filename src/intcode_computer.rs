@@ -64,7 +64,7 @@ pub enum State {
     Running,
     Halt,
     Input,
-    Output,
+    Output(SIZE),
 }
 
 pub struct CPU {
@@ -171,7 +171,7 @@ impl CPU {
                 }
                 self.output.push(a);
                 if self.halt_on_output {
-                    return State::Output;
+                    return State::Output(self.output.pop().unwrap());
                 }
             }
             Opcode::JmpTrue => {
