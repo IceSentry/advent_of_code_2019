@@ -225,7 +225,10 @@ impl CPU {
 }
 
 pub fn parse_input(input: &str) -> Vec<SIZE> {
-    input.split(',').map(|x| x.parse().unwrap()).collect()
+    input
+        .split(',')
+        .map(|x| x.parse().expect("Not a number"))
+        .collect()
 }
 
 pub fn parse_code(input: &[SIZE]) -> Vec<SIZE> {
