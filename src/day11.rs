@@ -104,12 +104,6 @@ fn part2(input: &[SIZE]) -> String {
     let height = max_y - min_y + 1;
     let width = max_x - min_x;
 
-    println!("{} {} {} {}", width, height, width * height, result.len());
-    println!(
-        "max_x {}, min_x {}, max_y {}, min_y {}",
-        max_x, min_x, max_y, min_y
-    );
-
     let mut output = String::from("\n");
 
     for y in 0..height {
