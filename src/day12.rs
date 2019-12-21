@@ -1,3 +1,4 @@
+use num::Integer;
 use std::cmp::Ordering;
 use std::ops::{Add, AddAssign};
 
@@ -87,6 +88,66 @@ impl State {
         }
         total_energy
     }
+
+    fn find_steps_repeating(&self) -> i64 {
+        let initial_state = self.clone();
+        let mut state = initial_state.clone();
+        state.step();
+
+        let mut steps: i64 = 1;
+        let mut step_x = 0;
+        let mut step_y = 0;
+        let mut step_z = 0;
+
+        loop {
+            state.step();
+            steps += 1;
+
+            let cmp_map: (i32, i32, i32) = state
+                .moons
+                .iter()
+                .enumerate()
+                .map(|(i, moon)| {
+                    // compare each axis of each moon
+                    let initial_moon = initial_state.moons[i];
+                    (
+                        moon.position.x == initial_moon.position.x && moon.velocity.x == 0,
+                        moon.position.y == initial_moon.position.y && moon.velocity.y == 0,
+                        moon.position.z == initial_moon.position.z && moon.velocity.z == 0,
+                    )
+                })
+                .fold((0, 0, 0), |acc, (x, y, z)| {
+                    // count all moons that have identical axis
+                    (
+                        acc.0 + if x { 1 } else { 0 },
+                        acc.1 + if y { 1 } else { 0 },
+                        acc.2 + if z { 1 } else { 0 },
+                    )
+                });
+
+            if step_x == 0 && cmp_map.0 == 4 {
+                step_x = steps;
+            }
+            if step_y == 0 && cmp_map.1 == 4 {
+                step_y = steps;
+            }
+            if step_z == 0 && cmp_map.2 == 4 {
+                step_z = steps;
+            }
+
+            if step_x != 0 && step_y != 0 && step_z != 0 {
+                break;
+            }
+        }
+
+        // calculate least common multiplicator
+        let mut lcm: i64 = step_x;
+        for i in &[step_y, step_z] {
+            lcm = lcm.lcm(i)
+        }
+
+        lcm
+    }
 }
 
 #[aoc_generator(day12)]
@@ -119,6 +180,11 @@ fn part1(input: &State) -> i32 {
     }
 
     state.total_energy()
+}
+
+#[aoc(day12, part2)]
+fn part2(input: &State) -> i64 {
+    input.find_steps_repeating()
 }
 
 #[cfg(test)]
@@ -222,21 +288,12 @@ mod tests {
              <x=3, y=5, z=-1>",
         );
 
-        let initial_state = input;
-        let mut state = initial_state.clone();
-        state.step();
-
-        let mut steps = 1;
-        while state != initial_state {
-            state.step();
-            steps += 1;
-        }
+        let steps = input.find_steps_repeating();
 
         assert_eq!(steps, 2772);
     }
 
     #[test]
-    #[ignore]
     fn test_day12_part2_long() {
         let input = generator_input(
             "<x=-8, y=-10, z=0>\n\
@@ -245,15 +302,7 @@ mod tests {
              <x=9, y=-8, z=-3>",
         );
 
-        let initial_state = input;
-        let mut state = initial_state.clone();
-        state.step();
-
-        let mut steps: i64 = 1;
-        while state != initial_state {
-            state.step();
-            steps += 1;
-        }
+        let steps = input.find_steps_repeating();
 
         assert_eq!(steps, 4_686_774_924);
     }
