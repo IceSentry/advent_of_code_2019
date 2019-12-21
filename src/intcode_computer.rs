@@ -133,7 +133,7 @@ impl CPU {
         match mode {
             ParamMode::Position => self.set(addr, value),
             ParamMode::Immediate => {
-                panic!("Parameters that an instruction writes to will never be in immediate mode")
+                panic!("Parameters that an instruction writes to should never be in immediate mode")
             }
             ParamMode::Relative => self.set(self.relative_base + addr, value),
         }
@@ -169,10 +169,11 @@ impl CPU {
                 let a = self.read_param(a);
                 if self.allow_print {
                     println!("output: {}", a);
-                    println!("outputs: {:?}", self.output);
                 }
                 self.output.push(a);
                 if self.halt_on_output {
+                    // TODO investigate stopping on N output len() and return the full output
+                    // also consider using an enum of 1 output and vec output
                     return State::Output(self.output.pop().unwrap());
                 }
             }
