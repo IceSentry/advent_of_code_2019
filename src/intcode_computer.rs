@@ -72,7 +72,7 @@ pub struct CPU {
     pub output: Vec<SIZE>,
     pub halt_on_output: bool,
     instruction_pointer: SIZE,
-    memory: Vec<SIZE>,
+    pub memory: Vec<SIZE>,
     relative_base: SIZE,
     allow_print: bool,
 }
