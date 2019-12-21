@@ -212,6 +212,7 @@ impl CPU {
     }
 
     pub fn run(&mut self, input: Option<SIZE>) -> State {
+        // TODO maybe have a run() and run_with_input()
         if let Some(value) = input {
             self.input.push_back(value);
         }
