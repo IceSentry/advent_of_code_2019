@@ -16,7 +16,7 @@ fn run_paint_robot(
     cpu: &mut CPU,
     default_color: SIZE,
 ) -> (HashMap<Point, SIZE>, i32, i32, i32, i32) {
-    let mut result = HashMap::new();
+    let mut panels = HashMap::new();
 
     let mut x = 0;
     let mut max_x = x;
@@ -27,11 +27,11 @@ fn run_paint_robot(
     let mut input = Point(x, y);
     let mut current_direction = Direction::Up;
     loop {
-        match cpu.run(Some(*result.get(&input).unwrap_or(&default_color))) {
+        match cpu.run_with_input(Some(*panels.get(&input).unwrap_or(&default_color))) {
             State::Halt => break,
             State::Output(color_to_paint) => {
-                result.insert(Point(input.0, input.1), color_to_paint);
-                if let State::Output(direction) = cpu.run(None) {
+                panels.insert(Point(input.0, input.1), color_to_paint);
+                if let State::Output(direction) = cpu.run() {
                     match direction {
                         0 => match current_direction {
                             Direction::Up => current_direction = Direction::Left,
@@ -74,7 +74,7 @@ fn run_paint_robot(
         }
     }
 
-    (result, max_x, min_x, max_y, min_y)
+    (panels, max_x, min_x, max_y, min_y)
 }
 
 #[aoc_generator(day11)]

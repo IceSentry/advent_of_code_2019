@@ -65,12 +65,14 @@ pub enum State {
     Halt,
     Input,
     Output(SIZE),
+    OutputVec(Vec<SIZE>),
 }
 
 pub struct CPU {
     pub input: VecDeque<SIZE>,
     pub output: Vec<SIZE>,
     pub halt_on_output: bool,
+    pub halt_on_output_size: usize,
     instruction_pointer: SIZE,
     pub memory: Vec<SIZE>,
     relative_base: SIZE,
@@ -87,6 +89,7 @@ impl CPU {
             memory,
             relative_base: 0,
             allow_print: cfg!(test),
+            halt_on_output_size: 1,
         }
     }
 
@@ -170,10 +173,14 @@ impl CPU {
                     println!("output: {}", a);
                 }
                 self.output.push(a);
-                if self.halt_on_output {
-                    // TODO investigate stopping on N output len() and return the full output
-                    // also consider using an enum of 1 output and vec output
-                    return State::Output(self.output.pop().unwrap());
+                if self.halt_on_output && self.output.len() == self.halt_on_output_size {
+                    if self.halt_on_output_size > 1 {
+                        let vec = self.output.to_vec();
+                        self.output.clear();
+                        return State::OutputVec(vec);
+                    } else {
+                        return State::Output(self.output.pop().unwrap());
+                    }
                 }
             }
             Opcode::JmpTrue => {
@@ -211,8 +218,11 @@ impl CPU {
         self.execute(instruction)
     }
 
-    pub fn run(&mut self, input: Option<SIZE>) -> State {
-        // TODO maybe have a run() and run_with_input()
+    pub fn run(&mut self) -> State {
+        self.run_with_input(None)
+    }
+
+    pub fn run_with_input(&mut self, input: Option<SIZE>) -> State {
         if let Some(value) = input {
             self.input.push_back(value);
         }
@@ -236,7 +246,7 @@ pub fn parse_input(input: &str) -> Vec<SIZE> {
 
 pub fn parse_code(input: &[SIZE]) -> Vec<SIZE> {
     let mut cpu = CPU::new(input.to_owned());
-    cpu.run(None);
+    cpu.run();
 
     cpu.memory
 }
@@ -291,7 +301,7 @@ mod tests {
 
     fn test_cpu(code: Vec<SIZE>, input: SIZE, expected_output: SIZE) -> bool {
         let mut cpu = CPU::new(code);
-        cpu.run(Some(input));
+        cpu.run_with_input(Some(input));
 
         *cpu.output.last().unwrap() == expected_output
     }
@@ -370,18 +380,18 @@ mod tests {
             109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99,
         ];
         let mut cpu = CPU::new(code.clone());
-        cpu.run(None);
+        cpu.run();
         assert_eq!(cpu.output, code);
 
         let code = vec![1102, 34_915_192, 34_915_192, 7, 4, 7, 99, 0];
         let mut cpu = CPU::new(code);
-        cpu.run(None);
+        cpu.run();
         println!("{:?}", cpu.output);
         assert_eq!(cpu.output[0], 1_219_070_632_396_864);
 
         let code = vec![104, 1_125_899_906_842_624, 99];
         let mut cpu = CPU::new(code);
-        cpu.run(None);
+        cpu.run();
         println!("{:?}", cpu.output);
         assert_eq!(cpu.output[0], 1_125_899_906_842_624);
     }

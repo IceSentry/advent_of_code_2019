@@ -35,6 +35,8 @@ fn part1(input: &[SIZE]) -> i32 {
 #[aoc(day13, part2)]
 fn part2(input: &[SIZE]) -> SIZE {
     let mut cpu = CPU::new(input.to_owned());
+    cpu.halt_on_output = true;
+    cpu.halt_on_output_size = 3;
     cpu.memory[0] = 2;
 
     let mut ball_x = 0;
@@ -42,26 +44,21 @@ fn part2(input: &[SIZE]) -> SIZE {
     let mut score = 0;
 
     loop {
-        match cpu.step() {
+        match cpu.run() {
             State::Halt => break,
             State::Input => match paddle_x.cmp(&ball_x) {
                 Ordering::Less => cpu.input.push_front(1),
                 Ordering::Greater => cpu.input.push_front(-1),
                 Ordering::Equal => cpu.input.push_front(0),
             },
-            State::Running => {
-                if cpu.output.len() == 3 {
-                    let x = cpu.output[0];
-                    let y = cpu.output[1];
-                    let tile_id = cpu.output[2];
-                    cpu.output.clear();
+            State::OutputVec(output) => {
+                let (x, y, tile_id) = (output[0], output[1], output[2]);
 
-                    match (x, y, tile_id) {
-                        (-1, 0, _) => score = tile_id,
-                        (_, _, 3) => paddle_x = x,
-                        (_, _, 4) => ball_x = x,
-                        _ => (),
-                    }
+                match (x, y, tile_id) {
+                    (-1, 0, _) => score = tile_id,
+                    (_, _, 3) => paddle_x = x,
+                    (_, _, 4) => ball_x = x,
+                    _ => (),
                 }
             }
             _ => (),

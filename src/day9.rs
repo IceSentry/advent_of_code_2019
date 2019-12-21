@@ -9,7 +9,7 @@ fn generator_input(input: &str) -> Vec<SIZE> {
 fn part1(input: &[SIZE]) -> SIZE {
     let mut cpu = CPU::new(input.to_owned());
 
-    cpu.run(Some(1));
+    cpu.run_with_input(Some(1));
 
     *cpu.output.last().unwrap()
 }
@@ -18,7 +18,7 @@ fn part1(input: &[SIZE]) -> SIZE {
 fn part2(input: &[SIZE]) -> SIZE {
     let mut cpu = CPU::new(input.to_owned());
 
-    cpu.run(Some(2));
+    cpu.run_with_input(Some(2));
 
     *cpu.output.last().unwrap()
 }

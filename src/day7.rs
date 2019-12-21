@@ -27,10 +27,10 @@ fn test_phase_setting(code: &[SIZE], phase_setting: Vec<SIZE>) -> SIZE {
     let mut phase_signal = 0;
     for (phase_index, _) in phase_setting.iter().enumerate().cycle() {
         let cpu = &mut cpus[phase_index];
-        match cpu.run(Some(phase_signal)) {
+        match cpu.run_with_input(Some(phase_signal)) {
             State::Output(output) => phase_signal = output,
             State::Halt => break,
-            _ => continue,
+            _ => (),
         };
     }
 
@@ -43,7 +43,6 @@ fn part1(input: &[SIZE]) -> SIZE {
 
     permute::permute(phase_settings)
         .par_iter()
-        // .iter()
         .map(|phase_setting| test_phase_setting(input, phase_setting.to_owned()))
         .max()
         .unwrap()
@@ -55,7 +54,6 @@ fn part2(input: &[SIZE]) -> SIZE {
 
     permute::permute(phase_settings)
         .par_iter()
-        // .iter()
         .map(|phase_setting| test_phase_setting(input, phase_setting.to_owned()))
         .max()
         .unwrap()
