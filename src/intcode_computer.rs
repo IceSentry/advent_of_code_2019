@@ -358,7 +358,7 @@ mod tests {
         assert!(test_cpu(code.clone(), input, 1000), " = 8");
 
         let input = 9;
-        assert!(test_cpu(code.clone(), input, 1001), " > 8");
+        assert!(test_cpu(code, input, 1001), " > 8");
     }
 
     #[test]
@@ -368,16 +368,16 @@ mod tests {
         ];
         let mut cpu = CPU::new(code.clone());
         cpu.run(None);
-        assert_eq!(cpu.output, code.clone());
+        assert_eq!(cpu.output, code);
 
         let code = vec![1102, 34_915_192, 34_915_192, 7, 4, 7, 99, 0];
-        let mut cpu = CPU::new(code.clone());
+        let mut cpu = CPU::new(code);
         cpu.run(None);
         println!("{:?}", cpu.output);
         assert_eq!(cpu.output[0], 1_219_070_632_396_864);
 
         let code = vec![104, 1_125_899_906_842_624, 99];
-        let mut cpu = CPU::new(code.clone());
+        let mut cpu = CPU::new(code);
         cpu.run(None);
         println!("{:?}", cpu.output);
         assert_eq!(cpu.output[0], 1_125_899_906_842_624);
