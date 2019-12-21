@@ -92,9 +92,8 @@ impl State {
     fn find_steps_repeating(&self) -> i64 {
         let initial_state = self.clone();
         let mut state = initial_state.clone();
-        state.step();
 
-        let mut steps: i64 = 1;
+        let mut steps = 0;
         let mut step_x = 0;
         let mut step_y = 0;
         let mut step_z = 0;
@@ -115,7 +114,7 @@ impl State {
                         moon.position.y == initial_moon.position.y && moon.velocity.y == 0,
                         moon.position.z == initial_moon.position.z && moon.velocity.z == 0,
                     )
-                })
+                }) // each moon is now (bool, bool, bool)
                 .fold((0, 0, 0), |acc, (x, y, z)| {
                     // count all moons that have identical axis
                     (
@@ -140,8 +139,7 @@ impl State {
             }
         }
 
-        // calculate least common multiplicator
-        let mut lcm: i64 = step_x;
+        let mut lcm = step_x;
         for i in &[step_y, step_z] {
             lcm = lcm.lcm(i)
         }
