@@ -107,9 +107,8 @@ impl CPU {
     }
 
     fn memory_size_check(&mut self, addr: SIZE) {
-        let len = self.memory.len();
-        if addr as usize >= len {
-            self.memory.resize(addr as usize + 100, 0)
+        if self.memory.get(addr as usize).is_none() {
+            self.memory.resize(addr as usize + 1, 0)
         }
     }
 
