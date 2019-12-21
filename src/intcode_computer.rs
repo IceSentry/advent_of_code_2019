@@ -15,7 +15,7 @@ impl ParamMode {
             0 => ParamMode::Position,
             1 => ParamMode::Immediate,
             2 => ParamMode::Relative,
-            _ => panic!("Unknown ParamMode"),
+            _ => panic!("Unknown ParamMode {}", param),
         }
     }
 }
@@ -74,7 +74,7 @@ pub struct CPU {
     instruction_pointer: SIZE,
     pub memory: Vec<SIZE>,
     relative_base: SIZE,
-    allow_print: bool,
+    pub allow_print: bool,
 }
 
 impl CPU {
@@ -155,11 +155,12 @@ impl CPU {
                 match self.input.pop_front() {
                     Some(value) => {
                         if self.allow_print {
-                            println!("{}", value)
+                            println!("input: {}", value)
                         }
                         self.write(a, value)
                     }
                     None => {
+                        self.instruction_pointer -= 1;
                         return State::Input;
                     }
                 };
@@ -168,6 +169,7 @@ impl CPU {
                 let a = self.read_param(a);
                 if self.allow_print {
                     println!("output: {}", a);
+                    println!("outputs: {:?}", self.output);
                 }
                 self.output.push(a);
                 if self.halt_on_output {
@@ -204,7 +206,7 @@ impl CPU {
         State::Running
     }
 
-    fn step(&mut self) -> State {
+    pub fn step(&mut self) -> State {
         let instruction = self.fetch();
         self.execute(instruction)
     }

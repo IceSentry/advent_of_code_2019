@@ -1,5 +1,7 @@
 use crate::intcode_computer::{parse_input, State, CPU, SIZE};
 use pancurses::{endwin, initscr, Input};
+use std::cmp::Ordering;
+use std::{thread, time};
 
 #[aoc_generator(day13)]
 fn generator_input(input: &str) -> Vec<SIZE> {
@@ -38,47 +40,61 @@ fn part1(input: &[SIZE]) -> i32 {
 #[aoc(day13, part2)]
 fn part2(input: &[SIZE]) -> i32 {
     let mut cpu = CPU::new(input.to_owned());
-    cpu.halt_on_output = true;
     cpu.memory[0] = 2;
 
     let window = initscr();
+    window.keypad(true);
 
-    let mut block_count = 0;
-
-    let mut input = None;
+    let use_human_player = false;
+    let mut ball_x = 0;
+    let mut paddle_x = 0;
+    let mut score = 0;
 
     loop {
         window.refresh();
-        match cpu.run(input) {
-            State::Halt => break,
-            State::Output(x) => {
-                if let State::Output(y) = cpu.run(None) {
-                    if let State::Output(tile_id) = cpu.run(None) {
-                        if tile_id == 2 {
-                            block_count += 1;
+        match cpu.step() {
+            State::Halt => {
+                println!("game over!");
+                break;
+            }
+            State::Input => {
+                if use_human_player {
+                    match window.getch() {
+                        Some(Input::KeyLeft) => {
+                            println!("left");
+                            cpu.input.push_front(-1);
                         }
-                        // points.push((x, y, tile_id));
+                        Some(Input::KeyRight) => {
+                            println!("right");
+                            cpu.input.push_front(1);
+                        }
+                        _ => cpu.input.push_front(0),
+                    }
+                } else {
+                    match paddle_x.cmp(&ball_x) {
+                        Ordering::Less => cpu.input.push_front(1),
+                        Ordering::Greater => cpu.input.push_front(-1),
+                        Ordering::Equal => cpu.input.push_front(0),
                     }
                 }
             }
-            State::Input => {
-                println!("block_count: {}", block_count);
-                match window.getch() {
-                    Some(Input::KeyDC) => break,
-                    Some(Input::Character(c)) => {
-                        window.addch(c);
+            State::Running => {
+                if cpu.output.len() == 3 {
+                    let x = cpu.output[0];
+                    let y = cpu.output[1];
+                    let tile_id = cpu.output[2];
+                    cpu.output.clear();
+
+                    if x == -1 && y == 0 {
+                        score = tile_id;
+                        println!("score: {}", score);
+                    } else {
+                        match tile_id {
+                            3 => paddle_x = x,
+                            4 => ball_x = x,
+                            _ => (),
+                        }
                     }
-                    Some(Input::KeyLeft) => {
-                        println!("left");
-                        input = Some(-1);
-                        window.printw("left");
-                    }
-                    Some(Input::KeyRight) => {
-                        println!("right");
-                        input = Some(1);
-                        window.printw("right");
-                    }
-                    _ => (),
                 }
             }
             _ => continue,
@@ -87,5 +103,5 @@ fn part2(input: &[SIZE]) -> i32 {
 
     endwin();
 
-    0
+    score as i32
 }
